@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import "./TicketListPage.css";
 import { getTickets } from "../api";
+import Spinner from "../components/Spinner";
+import ErrorMessage from "../components/ErrorMessage";
+import "../components/Spinner.css";
 
 /**
  * TicketListPage - shows ticket table, loads tickets async, supports refresh/error/loading UX.
@@ -58,11 +61,12 @@ function TicketListPage({ onSelect }) {
         </button>
       </div>
       {loading ? (
-        <div style={{ padding: 18 }}>Loading tickets...</div>
+        <Spinner />
       ) : error ? (
-        <div className="empty-message" style={{ color: "#d32f2f", fontWeight: 500 }}>
-          {error}
-        </div>
+        <ErrorMessage
+          message={error}
+          onRetry={fetchTickets}
+        />
       ) : tickets.length === 0 ? (
         <div className="empty-message">No tickets found.</div>
       ) : (
@@ -85,7 +89,11 @@ function TicketListPage({ onSelect }) {
               >
                 <td>{ticket.id}</td>
                 <td>{ticket.title}</td>
-                <td><span className={`status-badge status-${ticket.status}`}>{ticket.status}</span></td>
+                <td>
+                  <span className={`status-badge status-${ticket.status}`}>
+                    {ticket.status}
+                  </span>
+                </td>
                 <td>{ticket.created_at ? ticket.created_at.slice(0, 10) : ""}</td>
                 <td>{ticket.owner}</td>
               </tr>

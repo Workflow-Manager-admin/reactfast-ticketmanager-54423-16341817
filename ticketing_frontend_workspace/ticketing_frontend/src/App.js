@@ -5,6 +5,9 @@ import AuthPage from "./pages/AuthPage";
 import TicketListPage from "./pages/TicketListPage";
 import TicketDetailPage from "./pages/TicketDetailPage";
 import TicketCreatePage from "./pages/TicketCreatePage";
+import Spinner from "./components/Spinner";
+import ErrorMessage from "./components/ErrorMessage";
+import "./components/Spinner.css";
 
 // For API requests in the future, use:
 //   import { API_BASE_URL } from "./api";
@@ -160,14 +163,16 @@ function App() {
 
   // RENDER
   if (loadingUser) {
-    return <div style={{ padding: 60 }}>Loading user...</div>;
+    return <Spinner style={{ marginTop: 60 }} />;
   }
   if (!user) {
     return (
-      <AuthPage
-        onAuthenticate={handleAuthenticate}
-        errorMessage={authError}
-      />
+      <>
+        <AuthPage
+          onAuthenticate={handleAuthenticate}
+          errorMessage={authError}
+        />
+      </>
     );
   }
 
@@ -181,7 +186,7 @@ function App() {
     >
       <div style={{ padding: "17px 0" }}>
         {loadingTickets ? (
-          <div style={{ padding: 25 }}>Loading tickets...</div>
+          <Spinner style={{ marginTop: 40 }} />
         ) : creating ? (
           <TicketCreatePage
             onCreate={handleCreateTicket}

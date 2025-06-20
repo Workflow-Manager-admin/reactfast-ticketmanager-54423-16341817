@@ -10,10 +10,7 @@ app = FastAPI(
         {"name": "Auth", "description": "Authentication routes"},
         {"name": "Users", "description": "User management routes"},
         {"name": "Tickets", "description": "Ticket CRUD operations"},
-    ],
-    servers=[
-        {"url": "https://vscode-internal-7052-dev.dev01.cloud.kavia.ai:3001", "description": "Production API base"},
-    ],
+    ]
 )
 
 
