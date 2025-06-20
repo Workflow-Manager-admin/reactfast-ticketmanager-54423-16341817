@@ -16,12 +16,11 @@ app = FastAPI(
     ],
 )
 
-# Set the base API URL for CORS policy
-API_BASE_URL = "https://vscode-internal-7052-dev.dev01.cloud.kavia.ai:3001"
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[API_BASE_URL],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
