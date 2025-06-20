@@ -8,10 +8,15 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import traceback
 
 # PUBLIC_INTERFACE
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception as e:
+        print(f"verify_password error: {e}\n{traceback.format_exc()}")
+        return False
 
 # PUBLIC_INTERFACE
 def get_password_hash(password):

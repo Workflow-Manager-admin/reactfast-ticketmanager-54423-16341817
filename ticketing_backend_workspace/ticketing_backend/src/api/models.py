@@ -20,6 +20,9 @@ class User(Base):
 
     tickets = relationship("Ticket", back_populates="owner")
 
+    def __repr__(self):
+        return f"<User id={self.id}, username={self.username}, email={self.email}>"
+
 class Ticket(Base):
     """Ticket database model."""
     __tablename__ = 'tickets'
