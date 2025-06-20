@@ -10,12 +10,18 @@ app = FastAPI(
         {"name": "Auth", "description": "Authentication routes"},
         {"name": "Users", "description": "User management routes"},
         {"name": "Tickets", "description": "Ticket CRUD operations"},
-    ]
+    ],
+    servers=[
+        {"url": "https://vscode-internal-7052-dev.dev01.cloud.kavia.ai:3001", "description": "Production API base"},
+    ],
 )
+
+# Set the base API URL for CORS policy
+API_BASE_URL = "https://vscode-internal-7052-dev.dev01.cloud.kavia.ai:3001"
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[API_BASE_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
