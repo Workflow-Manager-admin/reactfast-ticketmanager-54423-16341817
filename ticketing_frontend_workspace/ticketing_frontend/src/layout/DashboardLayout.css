@@ -1,0 +1,8 @@
+.dashboard-main {
+  margin-left: 230px;
+  padding-top: 90px;
+  min-height: calc(100vh - 60px);
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+}

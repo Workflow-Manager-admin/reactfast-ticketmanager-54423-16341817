@@ -1,0 +1,63 @@
+.ticket-detail-root {
+  background: #fff;
+  margin: 26px;
+  padding: 20px 24px 18px 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(36,46,60,0.07);
+  max-width: 580px;
+}
+
+.ticket-detail-title {
+  color: #1976d2;
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin-bottom: 18px;
+  margin-top: 0;
+}
+
+.ticket-detail-form label {
+  display: block;
+  margin-bottom: 9px;
+  font-weight: 500;
+  color: #333;
+}
+
+.ticket-detail-form input[type="text"],
+.ticket-detail-form textarea,
+.ticket-detail-form select {
+  width: 100%;
+  margin: 5px 0 18px 0;
+  padding: 10px;
+  font-size: 1.09rem;
+  border-radius: 5px;
+  border: 1px solid #cccccc;
+}
+.ticket-detail-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 12px;
+}
+.btn {
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s;
+  border: none;
+  background: #eee;
+  color: #1A1A1A;
+}
+.btn.primary {
+  background: #1976d2;
+  color: #fff;
+}
+.btn.danger {
+  background: #d32f2f;
+  color: #fff;
+}
+.btn.primary:hover {
+  background: #135bc1;
+}
+.btn.danger:hover {
+  background: #b71c1c;
+}
