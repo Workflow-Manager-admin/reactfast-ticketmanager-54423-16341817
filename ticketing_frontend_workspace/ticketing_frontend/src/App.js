@@ -6,6 +6,10 @@ import TicketListPage from "./pages/TicketListPage";
 import TicketDetailPage from "./pages/TicketDetailPage";
 import TicketCreatePage from "./pages/TicketCreatePage";
 
+// For API requests in the future, use:
+//   import { API_BASE_URL } from "./api";
+// All ticketing backend fetches should use API_BASE_URL as root.
+
 // Note: In a full app, React Router would be used, but for the template, do explicit rendering by state
 
 // --- Dummy placeholders for demo; integration with backend comes later ---
