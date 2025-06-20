@@ -12,41 +12,95 @@ import TicketCreatePage from "./pages/TicketCreatePage";
 
 // Note: In a full app, React Router would be used, but for the template, do explicit rendering by state
 
-// --- Dummy placeholders for demo; integration with backend comes later ---
-const DUMMY_USER = { username: "alice" };
-const DUMMY_TICKETS = [
-  { id: 1, title: "Login broken", description: "I can't login", status: "open", owner: "alice", created_at: "2024-06-12" },
-  { id: 2, title: "Feature request", description: "Add dark mode", status: "in_progress", owner: "bob", created_at: "2024-06-11" },
-  { id: 3, title: "Crash on save", description: "App crashes", status: "closed", owner: "carol", created_at: "2024-06-10" }
-];
+import {
+  login as apiLogin,
+  register as apiRegister,
+  getMe,
+  removeToken,
+} from "./api";
+import { getTickets as apiGetTickets, createTicket as apiCreateTicket, updateTicket as apiUpdateTicket, deleteTicket as apiDeleteTicket } from "./api";
 
 function App() {
   // App State
   const [user, setUser] = useState(null);
-  const [tickets, setTickets] = useState(DUMMY_TICKETS);
+  const [tickets, setTickets] = useState([]);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [creating, setCreating] = useState(false);
   const [activeFilter, setActiveFilter] = useState("All");
   const [authError, setAuthError] = useState("");
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [loadingTickets, setLoadingTickets] = useState(false);
 
   // FILTERS
   const STATUS_FILTERS = ["All", "open", "in_progress", "closed"];
 
-  // Authentication - placeholder logic
-  function handleAuthenticate(username, password, isLogin) {
-    // TODO: Integrate with backend. For now, always "succeed" if username provided.
-    if (username && password) {
-      setUser({ username });
-      setAuthError("");
-    } else {
-      setAuthError("Invalid credentials");
+  // --- Initial Auth Check (on mount) ---
+  React.useEffect(() => {
+    async function checkAuth() {
+      setLoadingUser(true);
+      try {
+        const me = await getMe();
+        setUser(me);
+        setAuthError("");
+      } catch (err) {
+        setUser(null);
+      }
+      setLoadingUser(false);
     }
+    checkAuth();
+  }, []);
+
+  // --- Load tickets when authenticated ---
+  React.useEffect(() => {
+    if (!user) {
+      setTickets([]);
+      return;
+    }
+    setLoadingTickets(true);
+    apiGetTickets()
+      .then(data => {
+        setTickets(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setTickets([]))
+      .finally(() => setLoadingTickets(false));
+  }, [user]);
+
+  // Authentication (backend)
+  async function handleAuthenticate(username, password, isLogin) {
+    setAuthError("");
+    setLoadingUser(true);
+    try {
+      if (isLogin) {
+        await apiLogin(username, password);
+        // Now fetch user
+        const me = await getMe();
+        setUser(me);
+        setAuthError("");
+      } else {
+        // Registration - use demo email for this template (no field for email in AuthPage)
+        let email = username.includes("@") ? username : `${username}@user.local`;
+        await apiRegister(username, email, password);
+        // Immediately log in user after registration
+        await apiLogin(username, password);
+        const me = await getMe();
+        setUser(me);
+        setAuthError("");
+      }
+    } catch (err) {
+      setUser(null);
+      setAuthError(err?.message || "Authentication failed");
+      removeToken();
+    }
+    setLoadingUser(false);
   }
 
+  // Logout
   function handleLogout() {
+    removeToken();
     setUser(null);
     setSelectedTicketId(null);
     setCreating(false);
+    setAuthError("");
   }
 
   // TICKET selection handlers
@@ -63,26 +117,39 @@ function App() {
     setSelectedTicketId(null);
   }
 
-  // CRUD
-  function handleCreateTicket(ticket) {
-    // In real app, POST to backend.
-    const nextId = Math.max(...tickets.map(t => t.id)) + 1;
-    setTickets([
-      ...tickets,
-      { ...ticket, id: nextId, owner: user.username, created_at: new Date().toISOString().slice(0, 10) }
-    ]);
-    setCreating(false);
-    setSelectedTicketId(nextId);
+  // CRUD - backend powered
+  async function handleCreateTicket(ticket) {
+    try {
+      const newTicket = await apiCreateTicket(ticket);
+      setTickets(prev => [...prev, newTicket]);
+      setCreating(false);
+      setSelectedTicketId(newTicket.id);
+    } catch (err) {
+      alert(err?.message || "Failed to create ticket");
+    }
   }
-  function handleSaveTicket(updated) {
-    setTickets(tickets.map(t => t.id === updated.id ? { ...updated } : t));
-    setSelectedTicketId(updated.id);
-    setCreating(false);
+
+  async function handleSaveTicket(updated) {
+    try {
+      const saved = await apiUpdateTicket(updated);
+      setTickets(prev => prev.map(t => t.id === saved.id ? saved : t));
+      setSelectedTicketId(saved.id);
+      setCreating(false);
+    } catch (err) {
+      alert(err?.message || "Failed to update ticket");
+    }
   }
-  function handleDeleteTicket(id) {
-    setTickets(tickets.filter(t => t.id !== id));
-    setSelectedTicketId(null);
-    setCreating(false);
+
+  async function handleDeleteTicket(id) {
+    if (!window.confirm("Are you sure you want to delete this ticket?")) return;
+    try {
+      await apiDeleteTicket(id);
+      setTickets(prev => prev.filter(t => t.id !== id));
+      setSelectedTicketId(null);
+      setCreating(false);
+    } catch (err) {
+      alert(err?.message || "Failed to delete ticket");
+    }
   }
 
   // FILTER tickets for display
@@ -92,6 +159,9 @@ function App() {
       : tickets.filter(t => t.status === activeFilter);
 
   // RENDER
+  if (loadingUser) {
+    return <div style={{ padding: 60 }}>Loading user...</div>;
+  }
   if (!user) {
     return (
       <AuthPage
@@ -110,8 +180,9 @@ function App() {
       onLogout={handleLogout}
     >
       <div style={{ padding: "17px 0" }}>
-        {/* Conditional Rendering for Page Content */}
-        {creating ? (
+        {loadingTickets ? (
+          <div style={{ padding: 25 }}>Loading tickets...</div>
+        ) : creating ? (
           <TicketCreatePage
             onCreate={handleCreateTicket}
             onCancel={handleBackToList}
