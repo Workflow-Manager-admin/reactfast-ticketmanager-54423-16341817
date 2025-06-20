@@ -65,9 +65,11 @@ ROOT CAUSE LIST for Persistent 500s (to fix in next step):
 # No changes to endpoint logic in this step. Documented all causes for targeted fixing next.
 """
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from jose import JWTError
 from passlib.exc import UnknownHashError
+import logging
+from .. import database as db_module, models as models_module
 
 # PUBLIC_INTERFACE
 @router.post("/register", response_model=schemas.UserOut, summary="Register new user", description="Register a new user account.")
@@ -110,6 +112,20 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
                 status_code=409,
                 detail="Username or email already registered (conflict)"
             )
+        except OperationalError as dberr:
+            db.rollback()
+            # Likely cause is missing tables: try to auto-create and inform the admin
+            logging.error(f"OperationalError during registration, attempting to re-create schema: {dberr}")
+            try:
+                models_module.Base.metadata.create_all(bind=db_module.engine)
+                # Optionally, try to commit again if it was due to missing tables
+                db.add(new_user)
+                db.commit()
+                db.refresh(new_user)
+                logging.info("Table(s) were missing and have been created. Registration succeeded after auto-create.")
+            except Exception as re_err:
+                logging.error(f"Could not recover from OperationalError: {re_err}")
+                raise HTTPException(status_code=500, detail="Could not register user: DB schema was missing and could not be auto-recreated.")
         except Exception as dberr:
             db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error during registration: {type(dberr).__name__}")

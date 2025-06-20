@@ -15,6 +15,8 @@ app = FastAPI(
 )
 
 
+import logging
+
 # Ensure database schema is created on startup
 @app.on_event("startup")
 def on_startup():
@@ -22,7 +24,12 @@ def on_startup():
     Create database tables on startup if they do not exist.
     This prevents SQLAlchemy OperationalError due to missing tables.
     """
-    models.Base.metadata.create_all(bind=database.engine)
+    try:
+        models.Base.metadata.create_all(bind=database.engine)
+        logging.info("Database tables created or verified as existing.")
+    except Exception as e:
+        logging.error(f"Error ensuring DB schema at startup: {e}")
+        raise
 
 
 app.add_middleware(
