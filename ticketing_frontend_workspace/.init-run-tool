@@ -1,0 +1,4 @@
+{
+    "command": "PORT=<port> BROWSER=none npm start",
+    "working_directory": "/home/kavia/workspace/code-generation/reactfast-ticketmanager-54423-16341817/ticketing_frontend_workspace/ticketing_frontend"
+}
