@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .routers import users, tickets, auth
+from . import database, models
 
 app = FastAPI(
     title="Ticketing System API",
@@ -13,6 +14,15 @@ app = FastAPI(
     ]
 )
 
+
+# Ensure database schema is created on startup
+@app.on_event("startup")
+def on_startup():
+    """
+    Create database tables on startup if they do not exist.
+    This prevents SQLAlchemy OperationalError due to missing tables.
+    """
+    models.Base.metadata.create_all(bind=database.engine)
 
 
 app.add_middleware(
