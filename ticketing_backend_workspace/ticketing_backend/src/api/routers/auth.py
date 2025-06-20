@@ -65,13 +65,22 @@ ROOT CAUSE LIST for Persistent 500s (to fix in next step):
 # No changes to endpoint logic in this step. Documented all causes for targeted fixing next.
 """
 
+from sqlalchemy.exc import IntegrityError
+from jose import JWTError
+from passlib.exc import UnknownHashError
+
 # PUBLIC_INTERFACE
 @router.post("/register", response_model=schemas.UserOut, summary="Register new user", description="Register a new user account.")
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     """
     Register a new user account.
     Returns: schemas.UserOut
-    Raises: HTTPException on validation/database errors.
+
+    Raises:
+        HTTPException 400: Validation error or taken username/email
+        HTTPException 409: Uniqueness constraint (race)
+        HTTPException 422: Bad password format/hash error
+        HTTPException 500: Unexpected internal error
     """
     try:
         # Check for existing user by username or email
@@ -79,40 +88,71 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
             (models.User.username == user.username) | (models.User.email == user.email)
         ).first()
         if db_user:
-            print(f"DEBUG register: Username or email taken ({user.username}, {user.email})")
+            # Client error: already registered
             raise HTTPException(status_code=400, detail="Username or email already registered")
-        hashed_pw = auth_utils.get_password_hash(user.password)
-        print(f"DEBUG register: Creating user {user.username} with hash {hashed_pw[:10]}...")
+        try:
+            hashed_pw = auth_utils.get_password_hash(user.password)
+        except Exception as hash_err:
+            # Catch password hash issues up-front
+            raise HTTPException(
+                status_code=422,
+                detail=f"Password could not be processed: {str(hash_err)}"
+            )
         new_user = models.User(username=user.username, email=user.email, hashed_password=hashed_pw)
         db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-        print(f"DEBUG register: Successfully created user {new_user.id}")
-        return new_user
+        try:
+            db.commit()
+            db.refresh(new_user)
+        except IntegrityError as ie:
+            db.rollback()
+            # Uniqueness violation at commit time (race) → client error
+            raise HTTPException(
+                status_code=409,
+                detail="Username or email already registered (conflict)"
+            )
+        except Exception as dberr:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Database error during registration: {type(dberr).__name__}")
+        # Return serializable user
+        return schemas.UserOut.model_validate(new_user)
     except HTTPException:
+        # Let explicitly raised client/data exceptions percolate
         raise
-    except Exception as e:
+    except Exception as fatal:
         db.rollback()
-        print(f"Registration DB Error [{type(e)}]: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Could not register user due to internal error.")
+        # Final catch-all - should be rare, e.g., unhandled serialization
+        raise HTTPException(status_code=500, detail=f"Could not register user: {type(fatal).__name__}")
 
 # PUBLIC_INTERFACE
 @router.post("/login", summary="Authenticate user")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
+    """
+    Authenticate user and return JWT token.
+
+    Raises:
+        HTTPException 401: Bad credentials
+        HTTPException 422: Hash/token/technical credential issues
+        HTTPException 500: True internal errors
+    """
     try:
         user = db.query(models.User).filter(models.User.username == form_data.username).first()
         if not user:
-            print(f"DEBUG login: No such user '{form_data.username}'")
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        if not auth_utils.verify_password(form_data.password, user.hashed_password):
-            print(f"DEBUG login: Invalid password for '{form_data.username}'")
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-        token = auth_utils.create_access_token({"sub": user.username})
-        print(f"DEBUG login: Token generated for {user.username}: {token[:10]}...")
+        try:
+            if not auth_utils.verify_password(form_data.password, user.hashed_password):
+                raise HTTPException(status_code=401, detail="Invalid credentials")
+        except UnknownHashError as hash_err:
+            # Hashing library can't interpret the hash
+            raise HTTPException(status_code=422, detail=f"Stored password hash error: {str(hash_err)}")
+        except Exception as hash_exc:
+            raise HTTPException(status_code=422, detail=f"Password check error: {str(hash_exc)}")
+        try:
+            token = auth_utils.create_access_token({"sub": user.username})
+        except (JWTError, ValueError) as jwt_exc:
+            raise HTTPException(status_code=422, detail=f"Token creation error: {str(jwt_exc)}")
         return {"access_token": token, "token_type": "bearer"}
     except HTTPException:
         raise
-    except Exception as e:
-        print(f"Login Error [{type(e)}]: {e}")
-        raise HTTPException(status_code=500, detail="Could not login due to internal error.")
+    except Exception as fatal:
+        raise HTTPException(status_code=500, detail=f"Could not login: {type(fatal).__name__}")
 

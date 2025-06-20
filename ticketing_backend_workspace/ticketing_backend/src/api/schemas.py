@@ -15,6 +15,7 @@ class UserOut(BaseModel):
     email: EmailStr
 
     class Config:
+        from_attributes = True
         orm_mode = True
 
 # PUBLIC_INTERFACE
